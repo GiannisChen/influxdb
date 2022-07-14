@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -16,6 +15,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode"
 	"unsafe"
 
 	"github.com/influxdata/influxdb/v2/influxql/query"
@@ -715,7 +715,7 @@ func (s *Shard) validateSeriesAndFields(points []models.Point) ([]models.Point, 
 		if validateKeys && !models.ValidKeyTokens(string(p.Name()), tags) {
 			dropped++
 			if reason == "" {
-				reason = fmt.Sprintf("key contains invalid unicode: \"%s\"", string(p.Key()))
+				reason = fmt.Sprintf("key contains invalid unicode: %q", makePrintable(string(p.Key())))
 			}
 			continue
 		}
@@ -835,6 +835,28 @@ func (s *Shard) validateSeriesAndFields(points []models.Point) ([]models.Point, 
 	}
 
 	return points[:j], fieldsToCreate, err
+}
+
+const unPrintReplRune = '?'
+const unPrintMaxReplRune = 3
+
+// makePrintable - replace invalid and non-printable unicode characters with a few '?' runes
+func makePrintable(s string) string {
+	b := strings.Builder{}
+	b.Grow(len(s))
+	c := 0
+	for _, r := range strings.ToValidUTF8(s, string(unicode.ReplacementChar)) {
+		if !unicode.IsPrint(r) || r == unicode.ReplacementChar {
+			if c < unPrintMaxReplRune {
+				b.WriteRune(unPrintReplRune)
+			}
+			c++
+		} else {
+			b.WriteRune(r)
+			c = 0
+		}
+	}
+	return b.String()
 }
 
 func (s *Shard) createFieldsAndMeasurements(fieldsToCreate []*FieldCreate) error {
@@ -2213,7 +2235,7 @@ func (fs *MeasurementFieldSet) load() error {
 	}
 
 	var pb internal.MeasurementFieldSet
-	b, err := ioutil.ReadAll(fd)
+	b, err := io.ReadAll(fd)
 	if err != nil {
 		return err
 	}

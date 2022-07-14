@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	nethttp "net/http"
 	"net/http/httptest"
+	"os"
 	"runtime"
 	"sort"
 	"strings"
@@ -658,7 +658,7 @@ func TestLauncher_Pkger(t *testing.T) {
 			}))
 			defer svr.Close()
 
-			f, err := ioutil.TempFile("", "pkg.yml")
+			f, err := os.CreateTemp("", "pkg.yml")
 			require.NoError(t, err)
 			defer f.Close()
 
@@ -3805,6 +3805,7 @@ spec:
               |> filter(fn: (r) => r._value > params.minVal)
               |> aggregateWindow(every: v.windowPeriod, fn: max)
               |> yield(name: params.name)
+
           params:
             - key: bucket
               default: "bar"
@@ -3849,7 +3850,8 @@ from(bucket: params.bucket)
     |> filter(fn: (r) => r.floater == params.floatVal)
     |> filter(fn: (r) => r._value > params.minVal)
     |> aggregateWindow(every: v.windowPeriod, fn: max)
-    |> yield(name: params.name)`
+    |> yield(name: params.name)
+`
 
 				assert.Equal(t, expectedQuery, props.Queries[0].Text)
 				assert.Equal(t, "advanced", props.Queries[0].EditMode)
@@ -4066,6 +4068,7 @@ spec:
       |> filter(fn: (r) => r._value > params.minVal)
       |> aggregateWindow(every: 1m, fn: max)
       |> yield(name: params.name)
+
   params:
     - key: bucket
       default: "bar"
@@ -4098,7 +4101,8 @@ from(bucket: params.bucket)
     |> filter(fn: (r) => r.floater == params.floatVal)
     |> filter(fn: (r) => r._value > params.minVal)
     |> aggregateWindow(every: 1m, fn: max)
-    |> yield(name: params.name)`
+    |> yield(name: params.name)
+`
 
 				assert.Equal(t, expectedQuery, actual.Query)
 			}
